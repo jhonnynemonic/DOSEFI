@@ -1,0 +1,1 @@
+This a project DOSEFI and is for show how UEFI can boot ASM code compiled and added to a EFI file with 8086 emulation CPU code adapted to EFI. This was compiled wirh GNU-EFI-3.0.18, NASM and Ubuntu WSL, all can be downloaded and installed for try. 
