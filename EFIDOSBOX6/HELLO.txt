@@ -1,0 +1,11 @@
+B4 09        ; MOV AH,09h
+BA 09 01     ; MOV DX,0109h
+CD 21        ; INT 21h AH=09h
+CD 20        ; INT 20h
+"Hola desde UEFI DOS!$"
+
+
+nasm -f bin hello.asm -o HELLO.COM
+
+
+xxd -i HELLO.COM > hello_com.h
