@@ -1,0 +1,148 @@
+Ahora sí, Juan: esto está perfecto.
+
+Lo que vemos:
+
+text
+[DOS] Paso 11: bytes en entrypoint
+B8 00 4C CD 21 48 45 4C 4C 24 ...
+[CPU] opcode=B8 → MOV AX,4C00
+[INT21h] AH=4Ch ejecutado
+Es decir:
+
+En CS:IP=1000:0000 el primer opcode es B8 → MOV AX,4C00h
+
+Luego CD 21 con AH=4Ch → DOS termina el programa
+
+La cadena "HELL$" está ahí, pero no se llega a imprimir porque ya no haces el MOV AH,09 / INT 21h antes.
+
+Si quieres que imprima el texto como el original, deja el código así en la zona de código (offset 0x40):
+
+c
+// Código en 0x40
+0xB4, 0x09,            // mov ah,09h
+0xCD, 0x21,            // int 21h
+0xB8, 0x00, 0x4C,      // mov ax,4C00h
+0xCD, 0x21,            // int 21h
+'H','E','L','L','$'
+Con eso tendrás:
+
+MOV AH,09
+
+INT 21h → imprime la cadena a la que apunte DX (tu loader ya lo pone a 0x0010)
+
+MOV AX,4C00
+
+INT 21h → salir
+
+Si quieres, siguiente paso es cambiar solo la cadena final ('H','O','L','A',' ','J','U','A','N','$') y ajustamos el offset de DX para que apunte ahí.
+
+
+
+--------------------------------------
+
+Genial, ahora ya se ve clarísimo qué está pasando.
+
+En el entrypoint tienes:
+
+text
+B8 00 4C CD 21 48 4F 4C 41 20 4A 55 41 4E 24 ...
+Eso es:
+
+asm
+mov ax,4C00h
+int 21h          ; AH=4Ch → terminar programa
+"HOLA JUAN$"
+Es decir: el programa sale directamente y nunca ejecuta un INT 21h / AH=09h para imprimir la cadena.
+
+Solo tienes que dejar el código así en la zona de código (offset 0x40), manteniendo TODO lo demás igual:
+
+c
+// en offset 0x40:
+0xB4, 0x09,            // mov ah,09h
+0xCD, 0x21,            // int 21h (imprime [DX])
+0xB8, 0x00, 0x4C,      // mov ax,4C00h
+0xCD, 0x21,            // int 21h (salir)
+
+// y a continuación, la cadena:
+'H','O','L','A',' ','J','U','A','N','$'
+Con eso, con tu loader actual (que deja DX=0010h), verás en pantalla:
+
+Código
+HOLA JUAN
+y luego volverás al prompt UEFI como ahora.
+
+
+--------------------------------------
+
+============================================================
+ MANUAL: ESTILO DE EJECUTABLES COMPATIBLES CON MI CPU/LOADER
+============================================================
+
+1. FORMATO GENERAL DEL EXE
+--------------------------
+- Cabecera MZ fija de 64 bytes.
+- header_paragraphs = 4  →  cabecera = 4 * 16 = 64 bytes.
+- El código SIEMPRE empieza en offset 0x40.
+- El loader NO usa el tamaño real del fichero, solo la cabecera.
+- No se usan relocaciones (count=0).
+
+2. REGISTROS INICIALES QUE PONE EL LOADER
+-----------------------------------------
+- CS = 1000h
+- IP = 0000h  → apunta a offset 0x40 del fichero.
+- SS = 1000h
+- SP = 0080h
+- DX = 0010h  → apunta a la cadena DOS dentro del EXE.
+- DS = ES = 1000h
+
+3. INSTRUCCIONES QUE LA CPU SOPORTA (COMPROBADO)
+------------------------------------------------
+- B4 xx       → MOV AH,xx
+- B8 xx xx    → MOV AX,xxxx
+- CD 21       → INT 21h
+- EB xx       → JMP corto
+- 75 xx       → JNZ corto
+- Códigos simples sin ModR/M complejo.
+
+4. PATRÓN DE PROGRAMA QUE SIEMPRE FUNCIONA
+------------------------------------------
+El EXE debe seguir esta estructura EXACTA:
+
+  [cabecera MZ de 64 bytes]
+
+  0x40:  B4 09          ; mov ah,09h
+  0x42:  CD 21          ; int 21h (imprime la cadena en DX)
+  0x44:  B8 00 4C       ; mov ax,4C00h
+  0x47:  CD 21          ; int 21h (terminar)
+  0x49:  <cadena DOS terminada en '$'>
+
+5. CADENA DOS
+-------------
+- Debe colocarse en offset 0x50 (64 + 16).
+- El loader ya pone DX = 0010h, que apunta justo ahí.
+- Formato: "TEXTO$"
+
+6. EJEMPLO FUNCIONAL
+--------------------
+Código en offset 0x40:
+
+    B4 09
+    CD 21
+    B8 00 4C
+    CD 21
+    'H','O','L','A',' ','J','U','A','N','$'
+
+Esto imprime "HOLA JUAN" y sale correctamente.
+
+7. REGLA DE ORO
+---------------
+NO añadir instrucciones nuevas.
+NO cambiar la cabecera.
+NO mover el código de offset 0x40.
+NO tocar DX (el loader lo pone).
+
+Solo cambiar la cadena final si se quiere otro texto.
+
+============================================================
+ FIN DEL MANUAL
+============================================================

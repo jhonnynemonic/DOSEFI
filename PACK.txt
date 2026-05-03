@@ -1,0 +1,106 @@
+============================================================
+   PACK DE FICHEROS DOS COMPATIBLES CON MI CPU/LOADER
+============================================================
+
+Este pack contiene programas DOS diseñados para funcionar con:
+
+- Cabecera MZ fija de 64 bytes
+- Código en offset 0x40
+- DX = 0010h (puesto por el loader)
+- Instrucciones soportadas por la CPU:
+    B4 xx   → MOV AH,xx
+    B8 xxxx → MOV AX,xxxx
+    CD 21   → INT 21h
+    EB xx   → JMP corto
+    75 xx   → JNZ corto
+- Cadenas DOS terminadas en '$'
+
+Cada fichero está pensado para ampliar el sistema sin romper nada.
+
+------------------------------------------------------------
+1) PRINT1.EXE — Imprimir un mensaje simple
+------------------------------------------------------------
+Código en 0x40:
+    B4 09
+    CD 21
+    B8 00 4C
+    CD 21
+Cadena:
+    "HOLA JUAN$"
+
+------------------------------------------------------------
+2) PRINT2.EXE — Imprimir dos líneas seguidas
+------------------------------------------------------------
+Código:
+    B4 09
+    CD 21        ; imprime línea 1
+    EB 06        ; salta sobre la cadena 1
+    'L','I','N','E','A','1','$'
+
+    B4 09
+    CD 21        ; imprime línea 2
+    EB 06
+    'L','I','N','E','A','2','$'
+
+    B8 00 4C
+    CD 21
+
+------------------------------------------------------------
+3) LOOP1.EXE — Bucle infinito imprimiendo un texto
+------------------------------------------------------------
+Código:
+LOOP:
+    B4 09
+    CD 21
+    EB F9        ; salto atrás a LOOP
+Cadena:
+    "LOOP$"
+
+------------------------------------------------------------
+4) BLINK.EXE — Parpadeo simple (imprime, espera, imprime)
+------------------------------------------------------------
+Código:
+    B4 09
+    CD 21
+    B9 FF FF     ; CX = FFFFh
+DELAY:
+    83 C1 FF     ; CX--
+    75 FB        ; mientras CX != 0
+    EB F0        ; repetir desde el principio
+Cadena:
+    "PARPADEO$"
+
+------------------------------------------------------------
+5) MENU1.EXE — Menú estático (solo imprime varias líneas)
+------------------------------------------------------------
+Código:
+    B4 09
+    CD 21
+    EB 0A
+    "MENU DOS$"
+
+    B4 09
+    CD 21
+    EB 0A
+    "1) OPCION$"
+
+    B4 09
+    CD 21
+    EB 0A
+    "2) SALIR$"
+
+    B8 00 4C
+    CD 21
+
+------------------------------------------------------------
+NOTAS IMPORTANTES
+------------------------------------------------------------
+- Todos los programas usan solo instrucciones que tu CPU ya soporta.
+- Todos respetan el offset 0x40 para el código.
+- Todos usan DX=0010h para la cadena.
+- Puedes copiar/pegar cada bloque y convertirlo en un EXE válido.
+- Puedes combinarlos para crear programas más grandes.
+
+============================================================
+ FIN DEL PACK
+============================================================
